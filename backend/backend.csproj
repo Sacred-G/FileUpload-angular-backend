@@ -89,6 +89,7 @@
     <PackageReference Include="System.Runtime.Serialization.Primitives" Version="4.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.1.2" />
     <PackageReference Include="runtime.native.System.IO.Compression" Version="4.3.2" />
+    <PackageReference Include="JWT" Version="4.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -100,5 +101,6 @@
     <Compile Remove="Controllers\FilesController.cs" />
     <Compile Remove="Controllers\StreamingController.cs" />
     <Compile Remove="Models\File.cs" />
+    <Compile Remove="Models\User.cs" />
   </ItemGroup>
 </Project>
