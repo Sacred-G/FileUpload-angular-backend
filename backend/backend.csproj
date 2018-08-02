@@ -90,6 +90,7 @@
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.1.2" />
     <PackageReference Include="runtime.native.System.IO.Compression" Version="4.3.2" />
     <PackageReference Include="JWT" Version="4.0.0" />
+    <PackageReference Include="Microsoft.Owin.Security.Cookies" Version="4.0.0" />
   </ItemGroup>
 
   <ItemGroup>

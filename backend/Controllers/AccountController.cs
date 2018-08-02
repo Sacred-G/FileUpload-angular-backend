@@ -63,7 +63,29 @@ namespace backend.Controllers
 
             }
 
-            return Error("Unexpected error");
+            return Error("Invalid registration details. Please try again.");
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> SignIn([FromBody] Credentials Credentials)
+        {
+            if (ModelState.IsValid)
+            {
+                var result = await _signInManager.PasswordSignInAsync(Credentials.Email, Credentials.Password, false, false);
+                if (result.Succeeded)
+                {
+                    var user = await _userManager.FindByEmailAsync(Credentials.Email);
+                    return new JsonResult(new Dictionary<string, object>
+                    {
+                        { "access_token", GetAccessToken(Credentials.Email) },
+                        { "id_token", GetIdToken(user) }
+                    });
+                }
+
+                return new JsonResult("Unable to sign in") { StatusCode = 401 };
+            }
+
+            return Error("Invalid email or password. Please try again.");
         }
 
         private string GetIdToken(IdentityUser user)
@@ -123,28 +145,6 @@ namespace backend.Controllers
             DateTime origin = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
             TimeSpan diff = date.ToUniversalTime() - origin;
             return Math.Floor(diff.TotalSeconds);
-        }
-
-        [HttpPost("login")]
-        public async Task<IActionResult> SignIn([FromBody] Credentials Credentials)
-        {
-            if (ModelState.IsValid)
-            {
-                var result = await _signInManager.PasswordSignInAsync(Credentials.Email, Credentials.Password, false, false);
-                if (result.Succeeded)
-                {
-                    var user = await _userManager.FindByEmailAsync(Credentials.Email);
-                    return new JsonResult(new Dictionary<string, object>
-                    {
-                        { "access_token", GetAccessToken(Credentials.Email) },
-                        { "id_token", GetIdToken(user) }
-                    });
-                }
-
-                return new JsonResult("Unable to sign in") { StatusCode = 401 };
-            }
-
-            return Error("Unexpected error");
         }
     }
 }

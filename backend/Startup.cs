@@ -15,6 +15,10 @@ using System.Diagnostics;
 using System.IO;
 using backend.Controllers;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Net;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace backend
 {
@@ -32,6 +36,8 @@ namespace backend
         {
             services.Configure<JWTSettings>(Configuration.GetSection("JWTSettings"));
 
+            // TODO protect endpoints - redirect REST clients on 401
+
             services.AddCors(options => options.AddPolicy("Cors", builder => {
                 builder.AllowAnyOrigin()
                        .AllowAnyMethod()
@@ -39,11 +45,15 @@ namespace backend
             }));
 
             services.AddEntityFrameworkSqlServer().AddDbContext<UserDbContext>(opt => opt.UseInMemoryDatabase("user"));
-
             services.AddIdentity<IdentityUser, IdentityRole>().AddEntityFrameworkStores<UserDbContext>();
 
-            // Configuring Authentication services
+            // secretKey contains a secret passphrase only your server knows
+            var secretKey = Configuration.GetSection("JWTSettings:SecretKey").Value;
+            var issuer = Configuration.GetSection("JWTSettings:Issuer").Value;
+            var audience = Configuration.GetSection("JWTSettings:Audience").Value;
+            var signingKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(secretKey));
 
+            // Configuring Authentication services
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -51,12 +61,22 @@ namespace backend
 
             }).AddJwtBearer(options =>
             {
-                options.Authority = "https://sebwb.au.auth0.com/";
-                options.Audience = "https://eve.chabot.ai";
-            });
+                options.Authority = issuer;
+                options.Audience = audience;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = signingKey,
 
-            // Angular's default header name for sending the XSRF token.
-            services.AddAntiforgery(options => options.HeaderName = "X-XSRF-TOKEN");
+                    // Validate the JWT Issuer (iss) claim
+                    ValidateIssuer = true,
+                    ValidIssuer = issuer,
+
+                    // Validate the JWT Audience (aud) claim
+                    ValidateAudience = true,
+                    ValidAudience = audience
+                };
+            });
 
             services.AddMvc();
 
@@ -67,47 +87,24 @@ namespace backend
                 x.MultipartBodyLengthLimit = int.MaxValue; // In case of multipart
             });
 
-            //services.AddHsts(options =>
-            //{
-            //    options.Preload = true;
-            //    options.IncludeSubDomains = true;
-            //    options.MaxAge = TimeSpan.FromDays(60);
-            //    options.ExcludedHosts.Add("example.com");
-            //    options.ExcludedHosts.Add("www.example.com");
-            //});
-
-            //services.AddHttpsRedirection(options =>
-            //{
-            //    options.RedirectStatusCode = StatusCodes.Status307TemporaryRedirect;
-            //    options.HttpsPort = 5001;
-            //});
         }
 
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
+            loggerFactory.AddConsole(Configuration.GetSection("Logging"));
+            loggerFactory.AddDebug();
+
             app.UseAuthentication();
 
-            if (env.IsDevelopment())
-            {
+            if (env.IsDevelopment()) {
                 app.UseDeveloperExceptionPage();
-            }
-            else {
+            } else {
                 app.UseExceptionHandler("/Error");
-                //app.UseHsts();
             }
-
-            // Enable authentication middleware
-            app.UseAuthentication();
-
-            app.UseIdentity();
-
-            //app.UseHttpsRedirection();
 
             app.UseCors("Cors");
-            //app.UseStaticFiles();
-            //app.UseCookiePolicy();
 
             app.UseMvc();
         }
