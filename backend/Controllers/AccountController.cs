@@ -23,15 +23,6 @@ namespace backend.Controllers
         public string Audience { get; set; }
     }
 
-    //public class Credentials
-    //{
-    //    public string FirstName { get; set; }
-    //    public string LastName { get; set; }
-    //    public string Email { get; set; }
-    //    public string Password { get; set; }
-    //}
-
-
     [Produces("application/json")]
     [Route("api/Account")]
     public class AccountController : Controller
@@ -134,81 +125,26 @@ namespace backend.Controllers
             return Math.Floor(diff.TotalSeconds);
         }
 
-        //==============================================================================
-        //==============================================================================
-        //==============================================================================
-        //==============================================================================
+        [HttpPost("login")]
+        public async Task<IActionResult> SignIn([FromBody] Credentials Credentials)
+        {
+            if (ModelState.IsValid)
+            {
+                var result = await _signInManager.PasswordSignInAsync(Credentials.Email, Credentials.Password, false, false);
+                if (result.Succeeded)
+                {
+                    var user = await _userManager.FindByEmailAsync(Credentials.Email);
+                    return new JsonResult(new Dictionary<string, object>
+                    {
+                        { "access_token", GetAccessToken(Credentials.Email) },
+                        { "id_token", GetIdToken(user) }
+                    });
+                }
 
-        //[HttpPost("login")]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> Login([FromBody]Credentials credentials)
-        //{
-        //    if (credentials == null) return BadRequest("Invalid Password or Email. Please try again.");
+                return new JsonResult("Unable to sign in") { StatusCode = 401 };
+            }
 
-        //    var result = await _signInManager.PasswordSignInAsync(credentials.Email, credentials.Password, false, false);
-
-        //    if (!result.Succeeded) return BadRequest("Invalid Password or Email. Please try again.");
-
-        //    var user = await _userManager.FindByEmailAsync(credentials.Email);
-
-        //    return Ok(CreateToken(user));
-        //}
-
-        //private bool ValidateCredentials(Credentials credentials)
-        //{
-        //    if (credentials == null) return false;
-
-        //    // TODO
-
-        //    return true;
-        //}
-
-        //private IRestResponse CreateToken(IdentityUser user)
-        //{
-        //    //var claims = new Claim[] {
-        //    //    new Claim(JwtRegisteredClaimNames.Sub, user.Id)
-        //    //};
-
-        //    //// 30 minute expiration time
-        //    //var expiration = DateTime.UtcNow.AddMinutes(30);
-
-        //    //var default_Key = Encoding.UTF8.GetBytes("20m3r[0123jirm309r23jr923jnr0842n3fiom2piofn934fn9349rj945ngjnsdmnxm.gnkjfbdv;oenpg349rth438fenfkjer" +
-        //    //                                         "wmefoefi3m2490fnmkwmfsldfERG#$Gm340fm3q4Fmrigno34FGWEG#$%923nr32DERHTHij9201230jaldjgo0982{SGJinzxcv");
-        //    //var symmetricKey = "";
-
-        //    //try
-        //    //{   // Open the text file using a stream reader.
-                
-        //    //    using (StreamReader sr = new StreamReader("keys/key_private.asc"))
-        //    //    {
-        //    //        // Read the stream to a string, and write the string to the console.
-        //    //        symmetricKey = sr.ReadToEnd();
-        //    //    }
-        //    //}
-        //    //catch (Exception e)
-        //    //{
-        //    //    Trace.Write("The file could not be read:");
-        //    //    Trace.Write(e.Message);
-        //    //    return null;
-        //    //}
-
-
-        //    //// Fix this phrase to make more secure -- store in file
-
-        //    //var signingKey = (symmetricKey != "") ? new SymmetricSecurityKey(Encoding.UTF8.GetBytes(symmetricKey)) : new SymmetricSecurityKey(default_Key);
-
-        //    //var signingCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
-
-        //    //var jwt = new JwtSecurityToken(signingCredentials: signingCredentials, claims: claims, expires: expiration);
-
-        //    //return new JwtSecurityTokenHandler().WriteToken(jwt);
-
-        //    var client = new RestClient("https://sebwb.au.auth0.com/oauth/token");
-        //    var request = new RestRequest(Method.POST);
-        //    request.AddHeader("content-type", "application/json");
-        //    request.AddParameter("application/json", "{\"grant_type\":\"client_credentials\",\"client_id\": \"06k3572WpmVdvBnIiYqZGY1c6Kzy4uYn\",\"client_secret\": \"N1V9MruzlWFEUv093On0hYse7Z0IZoRhwAlYyMspT-9X-oZefYoEELWkFrUXFyc5\",\"audience\": \"https://eve.chatbot.ai\"}", ParameterType.RequestBody);
-        //    IRestResponse response = client.Execute(request);
-        //    return response;
-        //}
+            return Error("Unexpected error");
+        }
     }
 }
