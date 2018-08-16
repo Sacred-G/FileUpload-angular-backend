@@ -13,12 +13,25 @@ using Microsoft.Extensions.Options;
 using System;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using backend.Models;
+using System.Security.Cryptography.X509Certificates;
+using System.IO;
+using RestSharp;
+using Newtonsoft.Json;
 
 namespace backend.Controllers
 {
+
+    public class Resp
+    {
+        public string access_token { get; set; }
+        public string token_type { get; set; }
+    };
+
     public class JWTSettings
     {
+        public string Cert { get; set; }
         public string SecretKey { get; set; }
+        public string ClientId { get; set; }
         public string Issuer { get; set; }
         public string Audience { get; set; }
     }
@@ -92,7 +105,7 @@ namespace backend.Controllers
         {
             var payload = new Dictionary<string, object> {
                 { "id", user.Id },
-                { "sub", user.Email },
+                { "sub", _options.ClientId + "@clients" },
                 { "email", user.Email },
                 { "emailConfirmed", user.EmailConfirmed },
             };
@@ -102,23 +115,55 @@ namespace backend.Controllers
 
         private string GetAccessToken(string Email)
         {
-            var payload = new Dictionary<string, object> {
-                { "sub", Email },
-                { "email", Email }
-            };
+            //var payload = new Dictionary<string, object> {
+            //    { "sub", _options.ClientId + "@clients" },
+            //    { "email", Email }
+            //};
 
-            return GetToken(payload);
+            //return GetToken(payload);
+
+
+
+            var client = new RestClient(String.Format("{}/oauth/token", _options.Issuer));
+            var request = new RestRequest(Method.POST);
+            request.AddHeader("content-type", "application/json");
+            //request.AddParameter("application/json", "{\"client_id\":\"" + _options.ClientId + "\",\"client_secret\":\"" + _options.SecretKey + "\",\"audience\":\"" + _options.Audience + "\",\"grant_type\":\"client_credentials\"}", ParameterType.RequestBody);
+            request.AddParameter("application/json", "{\"client_id\":\"06k3572WpmVdvBnIiYqZGY1c6Kzy4uYn\",\"client_secret\":\"N1V9MruzlWFEUv093On0hYse7Z0IZoRhwAlYyMspT-9X-oZefYoEELWkFrUXFyc5\",\"audience\":\"https://eve.chabot.ai\",\"grant_type\":\"client_credentials\"}", ParameterType.RequestBody);
+            IRestResponse response = client.Execute(request);
+            Resp resp = JsonConvert.DeserializeObject<Resp>(response.Content);
+
+            return resp.access_token;
+        }
+
+        //Reads a file.
+        internal static byte[] ReadFile(string fileName)
+        {
+            FileStream f = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+            int size = (int)f.Length;
+            byte[] data = new byte[size];
+            size = f.Read(data, 0, size);
+            f.Close();
+            return data;
         }
 
         private string GetToken(Dictionary<string, object> payload)
         {
             var secret = _options.SecretKey;
 
+            //Create X509Certificate2 object from .cer file.
+            byte[] rawData = ReadFile("./keys/" + _options.Cert);
+
+            // Load the certificate into an X509Certificate object.
+            var x509 = new X509Certificate2(rawData);
+
             payload.Add("iss", _options.Issuer);
             payload.Add("aud", _options.Audience);
             payload.Add("nbf", ConvertToUnixTimestamp(DateTime.Now));
             payload.Add("iat", ConvertToUnixTimestamp(DateTime.Now));
             payload.Add("exp", ConvertToUnixTimestamp(DateTime.Now.AddDays(7)));
+            payload.Add("azp", _options.ClientId);
+            payload.Add("gty", "client-credentials");
+            //IJwtAlgorithm algorithm = new RS256Algorithm(x509);
             IJwtAlgorithm algorithm = new HMACSHA256Algorithm();
             IJsonSerializer serializer = new JsonNetSerializer();
             IBase64UrlEncoder urlEncoder = new JwtBase64UrlEncoder();
